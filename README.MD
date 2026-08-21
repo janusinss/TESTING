@@ -30,7 +30,7 @@ This repository contains the software implementation for a **Morphologically Con
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/forensic-dgp.git
+   git clone https://github.com/janusinss/forensic-dgp.git
    cd forensic-dgp
    ```
 2. Create and activate a virtual environment:
