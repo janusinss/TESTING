@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZCPO // FORENSIC DGP TERMINAL</title>
+    <!-- Geometric Sans and Monospace Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="terminal-layout">
+        
+        <!-- Header -->
+        <header class="terminal-header border-bottom">
+            <div class="logo-block border-right">
+                <i class="ph-fill ph-crosshair"></i>
+                <div class="logo-text">
+                    <h1>ZCPO // FORENSICS</h1>
+                    <span class="mono-label">SYS_ID: DGP_MATRIX_V1</span>
+                </div>
+            </div>
+            <div class="status-block">
+                <span class="status-indicator online"></span>
+                <span class="mono-label">ENGINE_STATUS: STANDBY</span>
+            </div>
+        </header>
+
+        <main class="terminal-body">
+            
+            <!-- Left Column: Input -->
+            <section class="panel input-panel border-right">
+                <div class="panel-header border-bottom">
+                    <h2>01 // TARGET_EXTRACTION</h2>
+                    <span class="mono-label">CCTV_CROP_INPUT</span>
+                </div>
+                
+                <div class="panel-content">
+                    <div id="drop-zone" class="drop-zone">
+                        <input type="file" id="file-input" accept="image/*" hidden>
+                        <div class="drop-zone-ui">
+                            <i class="ph ph-upload-simple"></i>
+                            <span class="mono-label">[ DRAG AND DROP FILE ]</span>
+                            <span class="mono-label dimmed">OR CLICK TO BROWSE</span>
+                        </div>
+                        <img id="preview-image" class="hidden" alt="Source Image">
+                    </div>
+
+                    <div class="action-block">
+                        <button id="analyze-btn" class="execute-btn" disabled>
+                            <i class="ph ph-cpu"></i> INITIATE_RECONSTRUCTION
+                        </button>
+                    </div>
+
+                    <div id="loading-state" class="loading-block hidden">
+                        <div class="spinner"></div>
+                        <span class="mono-label blink">COMPUTING_MORPHOLOGICAL_PRIOR...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Results -->
+            <section class="panel results-panel">
+                <div class="panel-header border-bottom">
+                    <h2>02 // TOP_K_RESULTS</h2>
+                    <span class="mono-label">SORTED_BY: FAN_LOSS_METRIC</span>
+                </div>
+                
+                <div class="panel-content scrollable">
+                    <div id="results-grid" class="results-container">
+                        <!-- Empty State -->
+                        <div class="empty-state">
+                            <i class="ph ph-hexagon"></i>
+                            <span class="mono-label">AWAITING_INPUT_DATA</span>
+                        </div>
+                        <!-- Results injected via JS -->
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+        
+        <!-- Footer / Status Bar -->
+        <footer class="terminal-footer border-top">
+            <span class="mono-label">ZCPO TERMINAL (C) 2026</span>
+            <span class="mono-label">MEM_LIMIT: 8192MB // LATENCY: < 100MS</span>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

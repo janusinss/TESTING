@@ -1,0 +1,333 @@
+/* 
+ * Utilitarian / Swiss Tech Stylesheet
+ * Strict grids, high contrast, monochrome, no rounded corners.
+ */
+
+ :root {
+    --bg-base: #000000;
+    --bg-surface: #0a0a0a;
+    --bg-hover: #171717;
+    --border-color: #262626;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #737373;
+    
+    --accent: #facc15; /* Warning Yellow */
+    --accent-hover: #eab308;
+    
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Typography Classes */
+.mono-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.dimmed {
+    opacity: 0.5;
+}
+
+/* Border Utilities */
+.border-bottom { border-bottom: 1px solid var(--border-color); }
+.border-right { border-right: 1px solid var(--border-color); }
+.border-top { border-top: 1px solid var(--border-color); }
+.border-left { border-left: 1px solid var(--border-color); }
+
+/* Layout Grid */
+.terminal-layout {
+    width: 100%;
+    max-width: 1600px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    background-color: var(--bg-surface);
+}
+
+/* Header */
+.terminal-header {
+    display: flex;
+    height: 64px;
+    background-color: var(--bg-base);
+}
+
+.logo-block {
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 1rem;
+    min-width: 400px;
+}
+
+.logo-block i {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+}
+
+.logo-text h1 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.status-block {
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 0.75rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-secondary);
+}
+
+.status-indicator.online {
+    background-color: #22c55e;
+}
+
+/* Main Body */
+.terminal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Panels */
+.panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-panel {
+    width: 400px;
+    flex-shrink: 0;
+    background-color: var(--bg-base);
+}
+
+.results-panel {
+    flex: 1;
+    background-color: var(--bg-surface);
+}
+
+.panel-header {
+    padding: 1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    background-color: var(--bg-base);
+}
+
+.panel-header h2 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.panel-content {
+    padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.scrollable {
+    overflow-y: auto;
+}
+
+/* Input Zone */
+.drop-zone {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px dashed var(--border-color);
+    background-color: var(--bg-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.drop-zone:hover, .drop-zone.dragover {
+    background-color: var(--bg-hover);
+    border-color: var(--text-secondary);
+}
+
+.drop-zone-ui {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+
+.drop-zone-ui i {
+    font-size: 2rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+#preview-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: var(--bg-base);
+    z-index: 10;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Buttons */
+.execute-btn {
+    width: 100%;
+    padding: 1rem;
+    background-color: var(--text-primary);
+    color: var(--bg-base);
+    border: none;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.execute-btn:hover:not(:disabled) {
+    background-color: var(--accent);
+}
+
+.execute-btn:disabled {
+    background-color: var(--border-color);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+}
+
+/* Loading State */
+.loading-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-surface);
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--text-primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.blink { animation: blink 1.5s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* Results Grid */
+.results-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+    border: 1px dashed var(--border-color);
+    gap: 1rem;
+}
+
+.empty-state i {
+    font-size: 2.5rem;
+    color: var(--border-color);
+}
+
+.result-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-base);
+}
+
+.result-image-container {
+    width: 100%;
+    aspect-ratio: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.result-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: #000;
+}
+
+.result-data {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.data-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.data-value {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+/* Footer */
+.terminal-footer {
+    height: 32px;
+    background-color: var(--bg-base);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 1.5rem;
+}

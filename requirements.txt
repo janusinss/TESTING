@@ -1,0 +1,13 @@
+torch
+torchvision
+opencv-python
+numpy
+face-alignment
+tqdm
+matplotlib
+fastapi
+uvicorn
+python-multipart
+torchmetrics
+onnxruntime
+insightface
