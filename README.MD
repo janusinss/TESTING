@@ -21,7 +21,7 @@ This repository contains the software implementation for a **Morphologically Con
 
 ---
 
-## 🚀 Getting Started (Local Deployment)
+##  Getting Started (Local Deployment)
 
 ### Prerequisites
 - Python 3.10+
@@ -30,7 +30,7 @@ This repository contains the software implementation for a **Morphologically Con
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/forensic-dgp.git
+   git clone https://github.com/janusinss/forensic-dgp.git
    cd forensic-dgp
    ```
 2. Create and activate a virtual environment:
@@ -55,7 +55,7 @@ Navigate to `http://localhost:8000` in your web browser.
 
 ---
 
-## ☁️ Cloud Deployment (Google Cloud / Docker)
+##  Cloud Deployment (Google Cloud / Docker)
 
 For training the model on the full FFHQ dataset using Google Cloud Compute Engine (Deep Learning VMs) with GPU acceleration, a `Dockerfile` is provided.
 
@@ -72,7 +72,7 @@ docker run --gpus all -v /path/to/dataset:/app/dataset forensic-dgp python train
 
 ---
 
-## 🧠 Training and Evaluation
+##  Training and Evaluation
 
 ### Dataset Setup
 Download the [FFHQ Dataset](https://github.com/NVlabs/ffhq-dataset) and place the high-resolution images in `dataset/ffhq/`.
@@ -85,5 +85,5 @@ During training, the model dynamically degrades the FFHQ images to sub-32x32 arr
 
 ---
 
-## ⚖️ Legal Context
+##  Legal Context
 This software was developed specifically to address the digital forensic admissibility constraints outlined by the *Philippine Rules on Electronic Evidence*. By strictly penalizing morphological deviation, the system reduces the risk of generating synthetic data fabrications ("hallucinations"), thereby maintaining the digital chain-of-custody for investigative operations.
