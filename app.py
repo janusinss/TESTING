@@ -31,7 +31,7 @@ model = DGPSynthesizer().to(device)
 checkpoint_path = "checkpoints/dgp_epoch_5.pth"
 if os.path.exists(checkpoint_path):
     print(f"SUCCESS: Loading trained intelligence from {checkpoint_path}...")
-    model.load_state_dict(torch.load(checkpoint_path, map_location=device), strict=False)
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device), strict=False)
 else:
     print(f"WARNING: {checkpoint_path} not found! Please place the downloaded file here. Using untrained weights for now.")
 
