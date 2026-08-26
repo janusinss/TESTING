@@ -1,0 +1,35 @@
+.env
+.DS_Store
+error_log
+.agent/
+.agents/
+.codex
+.impeccable
+product.md
+design.md
+.claude/
+skills-lock.json
+.env.example
+thesis.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Project Specific Data & Outputs
+dataset/
+checkpoints/
+*.png
+*.jpg
+*.jpeg
+!static/*.png
+!static/*.jpg
+
+# ML Weights
+*.pth
+*.pt
+*.h5

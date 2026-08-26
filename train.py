@@ -26,8 +26,11 @@ def train(args):
     model = DGPSynthesizer().to(device)
     
     if args.resume_from and os.path.exists(args.resume_from):
-        print(f"Resuming training from checkpoint: {args.resume_from}")
-        model.load_state_dict(torch.load(args.resume_from, map_location=device))
+        print(f"Resuming training from checkpoint/transfer weights: {args.resume_from}")
+        model.load_state_dict(torch.load(args.resume_from, map_location=device), strict=False)
+        
+    if args.transfer_learning:
+        model.freeze_backbone()
         
     fan_loss_fn = MorphologicalFANLoss(device=str(device))
     l1_loss_fn = nn.L1Loss()
@@ -101,6 +104,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
     parser.add_argument("--start_epoch", type=int, default=1, help="Epoch to start counting from")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to checkpoint .pth file to resume from")
+    parser.add_argument("--transfer_learning", action="store_true", help="Freeze backbone for transfer learning")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--lambda_fan", type=float, default=0.1, help="Weight for Morphological FAN Loss")
     parser.add_argument("--dry_run", action="store_true", help="Run 1 batch to verify the pipeline")

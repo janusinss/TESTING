@@ -45,6 +45,13 @@ class DGPSynthesizer(nn.Module):
             nn.Tanh() # Output in range [-1, 1]
         )
 
+    def freeze_backbone(self):
+        """Freezes the FPN MobileNet backbone to preserve transfer-learned priors."""
+        for stage in [self.fpn.stage1, self.fpn.stage2, self.fpn.stage3, self.fpn.stage4]:
+            for param in stage.parameters():
+                param.requires_grad = False
+        print("Backbone (MobileNetV2) successfully frozen for Transfer Learning.")
+
     def forward(self, x):
         """
         :param x: Degraded input tensor (B, 3, 24, 24)
