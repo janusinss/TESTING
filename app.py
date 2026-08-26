@@ -24,7 +24,17 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Load model globally (loads once on startup)
 print("Loading Forensic DGP Synthesizer...")
-model = DGPSynthesizer()
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = DGPSynthesizer().to(device)
+
+# Load the trained weights!
+checkpoint_path = "checkpoints/dgp_epoch_5.pth"
+if os.path.exists(checkpoint_path):
+    print(f"SUCCESS: Loading trained intelligence from {checkpoint_path}...")
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+else:
+    print(f"WARNING: {checkpoint_path} not found! Please place the downloaded file here. Using untrained weights for now.")
+
 model.eval()
 print("Model loaded.")
 
@@ -56,9 +66,9 @@ async def reconstruct_image(file: UploadFile = File(...)):
     img_bgr = cv2.resize(img_bgr, (24, 24))
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
     
-    # Normalize to [0, 1]
+    # Normalize to [0, 1] and move to device
     input_tensor = torch.from_numpy(img_rgb).permute(2, 0, 1).float() / 255.0
-    input_tensor = input_tensor.unsqueeze(0) # Add batch dimension -> (1, 3, 24, 24)
+    input_tensor = input_tensor.unsqueeze(0).to(device) # Add batch dimension -> (1, 3, 24, 24)
     
     # 4. Generate Top-K reconstructions
     k = 3
@@ -66,7 +76,7 @@ async def reconstruct_image(file: UploadFile = File(...)):
     # or rely on a no-reference aesthetic metric. For this pipeline demo, we pass the upscaled 
     # degraded image as the target to keep the Morphological Loss functional (it will find the 
     # approximate face shape of the degraded image).
-    dummy_target = torch.nn.functional.interpolate(input_tensor, size=(256, 256), mode='bilinear')
+    dummy_target = torch.nn.functional.interpolate(input_tensor, size=(256, 256), mode='bilinear').to(device)
     
     top_k_reconstructions, scores = model.generate_top_k(input_tensor, dummy_target, k=k)
     

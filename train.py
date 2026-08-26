@@ -24,6 +24,11 @@ def train(args):
     # 2. Initialize Models
     print("Initializing Models...")
     model = DGPSynthesizer().to(device)
+    
+    if args.resume_from and os.path.exists(args.resume_from):
+        print(f"Resuming training from checkpoint: {args.resume_from}")
+        model.load_state_dict(torch.load(args.resume_from, map_location=device))
+        
     fan_loss_fn = MorphologicalFANLoss(device=str(device))
     l1_loss_fn = nn.L1Loss()
     
@@ -36,8 +41,8 @@ def train(args):
     os.makedirs("checkpoints", exist_ok=True)
     
     # 3. Training Loop
-    print(f"Starting Training for {args.epochs} epochs...")
-    for epoch in range(1, args.epochs + 1):
+    print(f"Starting Training from Epoch {args.start_epoch} to {args.epochs}...")
+    for epoch in range(args.start_epoch, args.epochs + 1):
         model.train()
         epoch_loss = 0.0
         
@@ -94,6 +99,8 @@ if __name__ == "__main__":
     parser.add_argument("--data_dir", type=str, default="dataset/ffhq", help="Path to FFHQ dataset")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size (Keep small for <8GB VRAM)")
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--start_epoch", type=int, default=1, help="Epoch to start counting from")
+    parser.add_argument("--resume_from", type=str, default=None, help="Path to checkpoint .pth file to resume from")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--lambda_fan", type=float, default=0.1, help="Weight for Morphological FAN Loss")
     parser.add_argument("--dry_run", action="store_true", help="Run 1 batch to verify the pipeline")
