@@ -1,73 +1,83 @@
 import torch
 import torch.nn as nn
-from torchvision.models import mobilenet_v2
-from torchvision.ops import FeaturePyramidNetwork
-from collections import OrderedDict
+import torch.nn.functional as F
+import functools
+from .mobilenet_v2 import MobileNetV2
 
-class FPNMobileNet(nn.Module):
-    """
-    Feature Pyramid Network with MobileNet-DSC (Depthwise Separable Convolution) backbone.
-    This lightweight architecture extracts multi-scale feature maps from highly degraded
-    inputs, operating efficiently on edge hardware (<8GB VRAM).
-    """
-    def __init__(self, out_channels=256):
-        super(FPNMobileNet, self).__init__()
-        
-        # Load pre-trained MobileNetV2 backbone (lightweight DSC architecture)
-        mobilenet = mobilenet_v2(pretrained=True).features
-        
-        # MobileNetV2 features have 19 layers. We extract features at specific scales:
-        # Layer 3: Output shape (24, H/4, W/4)
-        # Layer 6: Output shape (32, H/8, W/8)
-        # Layer 13: Output shape (96, H/16, W/16)
-        # Layer 18: Output shape (1280, H/32, W/32)
-        
-        self.stage1 = mobilenet[0:4]   # output channels: 24
-        self.stage2 = mobilenet[4:7]   # output channels: 32
-        self.stage3 = mobilenet[7:14]  # output channels: 96
-        self.stage4 = mobilenet[14:19] # output channels: 1280
-        
-        # Define the FPN using torchvision's utility
-        # In_channels list must match the output channels of the selected stages
-        self.fpn = FeaturePyramidNetwork(
-            in_channels_list=[24, 32, 96, 1280],
-            out_channels=out_channels
-        )
-        
+class FPNHead(nn.Module):
+    def __init__(self, num_in, num_mid, num_out):
+        super(FPNHead, self).__init__()
+        self.block0 = nn.Conv2d(num_in, num_mid, kernel_size=3, padding=1, bias=False)
+        self.block1 = nn.Conv2d(num_mid, num_out, kernel_size=3, padding=1, bias=False)
+
     def forward(self, x):
-        """
-        :param x: Input image tensor of shape (B, C, H, W)
-        :return: Dictionary of multi-scale features
-        """
-        # Extract features from backbone
-        c1 = self.stage1(x)
-        c2 = self.stage2(c1)
-        c3 = self.stage3(c2)
-        c4 = self.stage4(c3)
-        
-        # Format for FPN
-        features = OrderedDict([
-            ('feat1', c1),
-            ('feat2', c2),
-            ('feat3', c3),
-            ('feat4', c4)
-        ])
-        
-        # Pass through FPN neck
-        fpn_features = self.fpn(features)
-        
-        return fpn_features
+        x = F.relu(self.block0(x), inplace=True)
+        x = F.relu(self.block1(x), inplace=True)
+        return x
 
-# Quick test if run as main
-if __name__ == "__main__":
-    model = FPNMobileNet(out_channels=128)
-    # Dummy input representing a batch of 2 degraded images (24x24 upscaled or raw size)
-    # The FPN expects sufficient spatial dimensions, so we assume the 24x24 input 
-    # is first upsampled to at least 128x128 or 256x256 before FPN processing,
-    # or the FPN is designed for small inputs. Let's test with 256x256.
-    dummy_input = torch.randn(2, 3, 256, 256)
-    out = model(dummy_input)
-    
-    print("FPN Outputs:")
-    for k, v in out.items():
-        print(f"{k}: {v.shape}")
+class FPN(nn.Module):
+    """
+    Official DeblurGAN-v2 Feature Pyramid Network (FPN) with MobileNetV2 backbone.
+    Extracts multi-scale features across 5 pyramidal resolutions with lateral 1x1 convs.
+    """
+    def __init__(self, norm_layer=None, num_filters=128):
+        super(FPN, self).__init__()
+        if norm_layer is None:
+            norm_layer = functools.partial(nn.InstanceNorm2d, affine=False, track_running_stats=True)
+
+        net = MobileNetV2(n_class=1000)
+        self.features = net.features
+
+        # Backbone hierarchy matching DeblurGAN-v2 key names exactly
+        self.enc0 = nn.Sequential(*self.features[0:2])
+        self.enc1 = nn.Sequential(*self.features[2:4])
+        self.enc2 = nn.Sequential(*self.features[4:7])
+        self.enc3 = nn.Sequential(*self.features[7:11])
+        self.enc4 = nn.Sequential(*self.features[11:16])
+
+        # Top-down pathway
+        self.td1 = nn.Sequential(
+            nn.Conv2d(num_filters, num_filters, kernel_size=3, padding=1),
+            norm_layer(num_filters),
+            nn.ReLU(inplace=True)
+        )
+        self.td2 = nn.Sequential(
+            nn.Conv2d(num_filters, num_filters, kernel_size=3, padding=1),
+            norm_layer(num_filters),
+            nn.ReLU(inplace=True)
+        )
+        self.td3 = nn.Sequential(
+            nn.Conv2d(num_filters, num_filters, kernel_size=3, padding=1),
+            norm_layer(num_filters),
+            nn.ReLU(inplace=True)
+        )
+
+        # Lateral 1x1 convolutions
+        self.lateral4 = nn.Conv2d(160, num_filters, kernel_size=1, bias=False)
+        self.lateral3 = nn.Conv2d(64, num_filters, kernel_size=1, bias=False)
+        self.lateral2 = nn.Conv2d(32, num_filters, kernel_size=1, bias=False)
+        self.lateral1 = nn.Conv2d(24, num_filters, kernel_size=1, bias=False)
+        self.lateral0 = nn.Conv2d(16, num_filters // 2, kernel_size=1, bias=False)
+
+    def forward(self, x):
+        enc0 = self.enc0(x)
+        enc1 = self.enc1(enc0)
+        enc2 = self.enc2(enc1)
+        enc3 = self.enc3(enc2)
+        enc4 = self.enc4(enc3)
+
+        lateral4 = self.lateral4(enc4)
+        lateral3 = self.lateral3(enc3)
+        lateral2 = self.lateral2(enc2)
+        lateral1 = self.lateral1(enc1)
+        lateral0 = self.lateral0(enc0)
+
+        map4 = lateral4
+        map3 = self.td1(lateral3 + F.interpolate(map4, scale_factor=2, mode='nearest'))
+        map2 = self.td2(lateral2 + F.interpolate(map3, scale_factor=2, mode='nearest'))
+        map1 = self.td3(lateral1 + F.interpolate(map2, scale_factor=2, mode='nearest'))
+        return lateral0, map1, map2, map3, map4
+
+# Compatibility alias
+FPNMobileNet = FPN
+

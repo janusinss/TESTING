@@ -2,6 +2,13 @@ import os
 os.environ["TORCH_COMPILE_DISABLE"] = "1"
 os.environ["TORCHDYNAMO_DISABLE"] = "1"
 
+try:
+    import torch._dynamo
+    torch._dynamo.config.suppress_errors = True
+    torch._dynamo.config.disable = True
+except Exception:
+    pass
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -9,7 +16,7 @@ from tqdm import tqdm
 import argparse
 
 from dataloader import get_dataloader
-from models import DGPSynthesizer, MorphologicalFANLoss
+from models import DGPSynthesizer, OptimalFaceRestorationLoss
 from evaluation import Evaluator
 
 def train(args):
@@ -27,20 +34,36 @@ def train(args):
     
     if args.resume_from and os.path.exists(args.resume_from):
         print(f"Resuming training from checkpoint/transfer weights: {args.resume_from}")
-        model.load_state_dict(torch.load(args.resume_from, map_location=device), strict=False)
+        try:
+            model.load_state_dict(torch.load(args.resume_from, map_location=device), strict=True)
+            print("SUCCESS: 100% of pre-trained weights loaded with strict=True!")
+        except Exception as e:
+            print(f"Notice on strict load: {e}. Falling back to strict=False...")
+            model.load_state_dict(torch.load(args.resume_from, map_location=device), strict=False)
         
+    # Optimizer configuration
     if args.transfer_learning:
-        model.freeze_backbone()
+        # Differential Learning Rate: backbone fine-tunes gently, head learns active synthesis
+        backbone_params = list(model.fpn.features.parameters())
+        head_params = [p for p in model.parameters() if not any(p is bp for bp in backbone_params)]
+        optimizer = optim.Adam([
+            {'params': backbone_params, 'lr': args.lr * 0.1},
+            {'params': head_params, 'lr': args.lr}
+        ], betas=(0.9, 0.999))
+        print(f"Applied Differential Learning Rate (Backbone: {args.lr * 0.1:.1e}, Head: {args.lr:.1e})")
+    else:
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999))
         
-    fan_loss_fn = MorphologicalFANLoss(device=str(device))
-    l1_loss_fn = nn.L1Loss()
-    
-    # Optimizer
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.999))
+    # Composite Optimal Loss Function
+    criterion = OptimalFaceRestorationLoss(
+        device=device,
+        lambda_vgg=args.lambda_vgg,
+        lambda_color=args.lambda_color,
+        lambda_fan=args.lambda_fan
+    )
     
     # Evaluator
     evaluator = Evaluator(device=device)
-    
     os.makedirs("checkpoints", exist_ok=True)
     
     # 3. Training Loop
@@ -58,24 +81,21 @@ def train(args):
             optimizer.zero_grad()
             reconstructed = model(low_res)
             
-            # Compute Losses
-            # Photometric Loss (L1) ensures general pixel alignment
-            l1_loss = l1_loss_fn(reconstructed, hr_target)
-            
-            # Morphological FAN Loss ensures geometric/biometric alignment (The core thesis contribution)
-            fan_loss = fan_loss_fn(reconstructed, hr_target)
-            
-            # Total Loss = Photometric + Lambda * Morphological
-            total_loss = l1_loss + (args.lambda_fan * fan_loss)
+            # Compute Composite Loss (Charbonnier + VGG19 + Color + FAN)
+            total_loss, loss_dict = criterion(reconstructed, hr_target)
             
             # Backward pass
             total_loss.backward()
             optimizer.step()
             
             epoch_loss += total_loss.item()
-            progress_bar.set_postfix({"Loss": f"{total_loss.item():.4f}"})
+            progress_bar.set_postfix({
+                "Loss": f"{total_loss.item():.4f}",
+                "VGG": f"{loss_dict['VGG']:.3f}",
+                "Col": f"{loss_dict['Color']:.3f}"
+            })
             
-            # For Dry Run, we break after 1 batch
+            # For Dry Run, break after 1 batch
             if args.dry_run:
                 print("\n[Dry Run] Successfully completed 1 batch. Breaking loop.")
                 break
@@ -98,15 +118,17 @@ def train(args):
             break
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train the Forensic Deep Generative Prior Model")
+    parser = argparse.ArgumentParser(description="Train the Optimal Deep Generative Prior Face Restoration Model")
     parser.add_argument("--data_dir", type=str, default="dataset/ffhq", help="Path to FFHQ dataset")
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size (Keep small for <8GB VRAM)")
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
     parser.add_argument("--start_epoch", type=int, default=1, help="Epoch to start counting from")
     parser.add_argument("--resume_from", type=str, default=None, help="Path to checkpoint .pth file to resume from")
-    parser.add_argument("--transfer_learning", action="store_true", help="Freeze backbone for transfer learning")
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
-    parser.add_argument("--lambda_fan", type=float, default=0.1, help="Weight for Morphological FAN Loss")
+    parser.add_argument("--transfer_learning", action="store_true", help="Enable differential learning rate for transfer learning")
+    parser.add_argument("--lr", type=float, default=2e-4, help="Learning rate for generative head")
+    parser.add_argument("--lambda_vgg", type=float, default=0.15, help="Weight for VGG19 Perceptual Loss")
+    parser.add_argument("--lambda_color", type=float, default=0.05, help="Weight for Color Consistency Loss")
+    parser.add_argument("--lambda_fan", type=float, default=0.05, help="Weight for Morphological FAN Loss")
     parser.add_argument("--dry_run", action="store_true", help="Run 1 batch to verify the pipeline")
     
     args = parser.parse_args()

@@ -1,6 +1,16 @@
+import os
+os.environ["TORCH_COMPILE_DISABLE"] = "1"
+os.environ["TORCHDYNAMO_DISABLE"] = "1"
 import torch
 import torch.nn as nn
 import face_alignment
+
+try:
+    import torch._dynamo
+    torch._dynamo.config.suppress_errors = True
+    torch._dynamo.config.disable = True
+except Exception:
+    pass
 
 class MorphologicalFANLoss(nn.Module):
     """

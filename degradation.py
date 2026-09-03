@@ -111,3 +111,60 @@ def apply_h264_quantization(image, qp=35):
         decimg = cv2.imdecode(encimg, 1)
         return decimg
     return image
+
+def estimate_noise_sigma(image_gray):
+    """
+    Estimates Gaussian noise standard deviation sigma using the 
+    Laplacian operator & Median Absolute Deviation (MAD).
+    Reference: Immerkaer (1996) / Donoho (1994)
+    """
+    if len(image_gray.shape) == 3:
+        image_gray = cv2.cvtColor(image_gray, cv2.COLOR_BGR2GRAY)
+        
+    H, W = image_gray.shape
+    mask = np.array([[ 1, -2,  1],
+                     [-2,  4, -2],
+                     [ 1, -2,  1]], dtype=np.float32)
+    
+    sigma = np.sum(np.abs(cv2.filter2D(image_gray.astype(np.float32), -1, mask)))
+    sigma = sigma * np.sqrt(0.5 * np.pi) / (6.0 * max(1, W - 2) * max(1, H - 2))
+    return float(sigma)
+
+def adaptive_cctv_denoise(image_bgr):
+    """
+    Intelligently analyzes noise density in the degraded CCTV crop and applies
+    appropriate edge-preserving filtering (Bilateral / Median) to prevent noise
+    leakage into the generative residual reconstruction.
+    """
+    if image_bgr is None:
+        return image_bgr
+        
+    # Work with uint8
+    is_float = image_bgr.dtype in [np.float32, np.float64]
+    if is_float:
+        img_uint8 = (np.clip(image_bgr, 0.0, 1.0) * 255).astype(np.uint8)
+    else:
+        img_uint8 = image_bgr.copy()
+        
+    gray = cv2.cvtColor(img_uint8, cv2.COLOR_BGR2GRAY)
+    
+    # 1. Detect and eliminate Salt & Pepper / Impulse Noise
+    median_filtered = cv2.medianBlur(gray, 3)
+    diff = np.abs(gray.astype(np.int32) - median_filtered.astype(np.int32))
+    impulse_ratio = np.mean(diff > 45)
+    
+    denoised = img_uint8
+    if impulse_ratio > 0.008:
+        denoised = cv2.medianBlur(denoised, 3)
+        gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
+        
+    # 2. Detect and eliminate Thermal Gaussian Sensor Noise
+    sigma = estimate_noise_sigma(gray)
+    if sigma > 6.0:
+        # Edge-preserving Bilateral Filter
+        denoised = cv2.bilateralFilter(denoised, d=5, sigmaColor=35, sigmaSpace=35)
+        
+    if is_float:
+        return denoised.astype(np.float32) / 255.0
+    return denoised
+
