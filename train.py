@@ -110,7 +110,7 @@ def train(args):
             print(f"Validation Metrics -> PSNR: {metrics['PSNR']} | SSIM: {metrics['SSIM']} | ArcFace: {metrics['ArcFace_Sim']}")
             
         # Save Checkpoint
-        checkpoint_path = f"checkpoints/dgp_epoch_{epoch}.pth"
+        checkpoint_path = f"checkpoints/dgp_improved_epoch_{epoch}.pth"
         torch.save(model.state_dict(), checkpoint_path)
         print(f"Saved checkpoint: {checkpoint_path}\n")
         

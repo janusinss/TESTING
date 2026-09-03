@@ -35,12 +35,13 @@ print("Loading Optimal Generative Face Restoration Synthesizer...")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = DGPSynthesizer().to(device)
 
-# Auto-detect best model weights
+# Auto-detect best model weights (searches highest improved epoch first)
 checkpoint_path = "mapped_deblurgan.pth"
-if os.path.exists("checkpoints/dgp_epoch_1.pth"):
-    checkpoint_path = "checkpoints/dgp_epoch_1.pth"
-elif os.path.exists("checkpoints/dgp_transfer_epoch_5.pth"):
-    checkpoint_path = "checkpoints/dgp_transfer_epoch_5.pth"
+for ep in range(30, 0, -1):
+    cand = f"checkpoints/dgp_improved_epoch_{ep}.pth"
+    if os.path.exists(cand):
+        checkpoint_path = cand
+        break
 
 if os.path.exists(checkpoint_path):
     print(f"SUCCESS: Loading pre-trained intelligence from {checkpoint_path}...")
