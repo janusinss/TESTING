@@ -82,8 +82,17 @@ async def reconstruct_image(file: UploadFile = File(...)):
     # Eliminates high-frequency thermal sensor noise before super-resolution
     img_clean_bgr = adaptive_cctv_denoise(img_bgr)
     
-    # 2. Preprocess to standard sub-32x32 CCTV bounding box (24x24)
-    img_low_bgr = cv2.resize(img_clean_bgr, (24, 24))
+    # 2. Forensic Aspect-Ratio Preservation: Center-crop to 1:1 square
+    # Prevents wide/rectangular portrait photos from being squished horizontally
+    h, w = img_clean_bgr.shape[:2]
+    if h != w:
+        min_dim = min(h, w)
+        top = (h - min_dim) // 2
+        left = (w - min_dim) // 2
+        img_clean_bgr = img_clean_bgr[top:top+min_dim, left:left+min_dim]
+    
+    # Preprocess to standard sub-32x32 CCTV bounding box (24x24)
+    img_low_bgr = cv2.resize(img_clean_bgr, (24, 24), interpolation=cv2.INTER_AREA)
     img_rgb = cv2.cvtColor(img_low_bgr, cv2.COLOR_BGR2RGB)
     
     # Normalize to [0, 1] tensor
@@ -95,15 +104,31 @@ async def reconstruct_image(file: UploadFile = File(...)):
     dummy_target = torch.nn.functional.interpolate(input_tensor, size=(256, 256), mode='bilinear').to(device)
     top_k_reconstructions, scores = model.generate_top_k(input_tensor, dummy_target, k=k)
     
-    # 4. Convert output tensors to base64 strings with guided detail enhancement
+    # Reference low-resolution input scaled up for illumination calibration
+    ref_rgb = cv2.resize(img_rgb, (256, 256), interpolation=cv2.INTER_LINEAR)
+    lab_ref = cv2.cvtColor(ref_rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+    l_ref_mean = float(lab_ref[:, :, 0].mean())
+    l_ref_std = float(max(1e-5, lab_ref[:, :, 0].std()))
+
+    # 4. Convert output tensors to base64 strings with guided detail enhancement & illumination preservation
     result_images = []
     for idx, rec_tensor in enumerate(top_k_reconstructions):
         # tensor is (1, 3, 256, 256) in [0, 1] range
         rec_img_np = (rec_tensor[0].permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8).copy()
         
+        # Adaptive Forensic Illumination Calibration:
+        # Prevents atmospheric dehazing offset from underexposing normal CCTV inputs
+        lab_rec = cv2.cvtColor(rec_img_np, cv2.COLOR_RGB2LAB).astype(np.float32)
+        l_rec_mean = float(lab_rec[:, :, 0].mean())
+        l_rec_std = float(max(1e-5, lab_rec[:, :, 0].std()))
+        
+        if l_rec_mean < l_ref_mean:
+            lab_rec[:, :, 0] = np.clip((lab_rec[:, :, 0] - l_rec_mean) * (l_ref_std / l_rec_std) + l_ref_mean, 0, 255)
+            rec_img_np = cv2.cvtColor(lab_rec.astype(np.uint8), cv2.COLOR_LAB2RGB)
+
         # Subtle unsharp masking to enhance eye, iris, and facial edge definition
         blurred = cv2.GaussianBlur(rec_img_np, (0, 0), 1.5)
-        rec_img_np = cv2.addWeighted(rec_img_np, 1.3, blurred, -0.3, 0)
+        rec_img_np = cv2.addWeighted(rec_img_np, 1.25, blurred, -0.25, 0)
         rec_img_np = np.clip(rec_img_np, 0, 255).astype(np.uint8)
         
         # Encode back to PNG buffer
